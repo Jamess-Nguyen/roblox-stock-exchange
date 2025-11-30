@@ -1,0 +1,23 @@
+# Roblox
+*.rbxl
+*.rbxlx
+*.rbxm
+*.rbxmx
+
+# Wally
+/Packages
+
+# Rojo sourcemap
+sourcemap.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# VSCode
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+
+# Logs
+*.log

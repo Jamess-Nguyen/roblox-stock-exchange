@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(export PATH=\"$HOME/.cargo/bin:$PATH\")",
+      "Bash(cargo install:*)",
+      "Bash(curl:*)",
+      "Bash(wally --version:*)",
+      "Bash(rojo --version:*)",
+      "Bash(stylua:*)",
+      "Bash(rojo serve:*)",
+      "Bash(source ~/.bashrc)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

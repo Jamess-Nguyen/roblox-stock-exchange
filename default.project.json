@@ -1,0 +1,9 @@
+{
+  "name": "roblox-stock-exchange",
+  "tree": {
+    "$className": "DataModel",
+    "ServerScriptService": {
+      "$path": "src/server"
+    }
+  }
+}
