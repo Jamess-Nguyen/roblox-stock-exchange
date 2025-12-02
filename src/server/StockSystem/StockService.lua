@@ -1,8 +1,8 @@
-local stockService = {}
+local StockService = {}
 local stockData = require(script.Parent.StockData)
 
-function stockService:GetAllStocks()
+function StockService:GetAllStocks()
   return stockData
 end
 
-return stockService
+return StockService

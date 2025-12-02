@@ -5,8 +5,6 @@ local OpenStockUI = Instance.new("RemoteEvent")
 OpenStockUI.Name = "OpenStockUI"
 OpenStockUI.Parent = ReplicatedStorage
 
-print("SeatDetection script loaded!")
-
 local function onCharacterAdded(character)
 	local humanoid = character:WaitForChild("Humanoid")
 

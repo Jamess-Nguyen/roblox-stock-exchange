@@ -1,19 +1,19 @@
-local stockData = {
+local StockData = {
   {
-    name = "Roblox", 
-    symbol = "RBLX",
-    currentPrice = 100.00
+    Name = "Roblox",
+    Symbol = "RBLX",
+    CurrentPrice = 100.00
   },
   {
-    name = "Apple", 
-    symbol = "AAPL",
-    currentPrice = 50.00
+    Name = "Apple",
+    Symbol = "AAPL",
+    CurrentPrice = 50.00
   },
   {
-    name = "Microsoft", 
-    symbol = "MSFT",
-    currentPrice = 25.00
+    Name = "Microsoft",
+    Symbol = "MSFT",
+    CurrentPrice = 25.00
   },
 }
 
-return stockData
+return StockData
