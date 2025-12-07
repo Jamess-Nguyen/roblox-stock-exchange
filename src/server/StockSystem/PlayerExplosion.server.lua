@@ -1,11 +1,13 @@
+-- Services
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local ExplodePlayer = Instance.new("RemoteEvent")
-ExplodePlayer.Name = "ExplodePlayer"
-ExplodePlayer.Parent = ReplicatedStorage
+-- Remote Events
+local ExplodePlayer
 
-ExplodePlayer.OnServerEvent:Connect(function(player)
+-- Function Declarations
+
+local function onPlayerExplode(player)
 	local character = player.Character
 	if character then
 		local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
@@ -17,4 +19,20 @@ ExplodePlayer.OnServerEvent:Connect(function(player)
 			explosion.Parent = workspace
 		end
 	end
-end)
+end
+
+local function setupExplodeEvent()
+	ExplodePlayer = Instance.new("RemoteEvent")
+	ExplodePlayer.Name = "ExplodePlayer"
+	ExplodePlayer.Parent = ReplicatedStorage
+
+	ExplodePlayer.OnServerEvent:Connect(onPlayerExplode)
+end
+
+-- If __name__ == "__main__":
+
+local function main()
+	setupExplodeEvent()
+end
+
+main()

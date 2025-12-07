@@ -1,10 +1,17 @@
+-- Services
 local DataStoreService = game:GetService("DataStoreService")
+
+-- Data Stores
 local CurrencyDataStore = DataStoreService:GetDataStore("PlayerCurrency")
 
+-- Module
 local CurrencyManager = {}
 CurrencyManager.PlayerCurrency = {}
 
+-- Constants
 local DEFAULT_CURRENCY = 100000
+
+-- Public Functions
 
 function CurrencyManager:GetCurrency(player)
 	return self.PlayerCurrency[player.UserId] or 0

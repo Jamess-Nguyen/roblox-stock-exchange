@@ -1,8 +1,13 @@
-local StockService = {}
+-- Modules
 local stockData = require(script.Parent.StockData)
 
+-- Module
+local StockService = {}
+
+-- Public Functions
+
 function StockService:GetAllStocks()
-  return stockData
+	return stockData
 end
 
 return StockService

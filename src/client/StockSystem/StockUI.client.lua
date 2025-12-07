@@ -1,65 +1,42 @@
+-- Services
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 
+-- Variables
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 local stockUI = playerGui:WaitForChild("StockUI")
 
-local closeButton = stockUI:FindFirstChild("CloseButton", true)
-local mainFrame = stockUI:FindFirstChild("MainFrame")
+-- UI Elements
+local mainFrame
+local closeButton
 
-local stuffTab, stocksTab, stuffContent, stocksContent, currencyLabel
+-- Tab System
+local profileTab, stocksTab, transactionsTab
+local profileContent, stocksContent, transactionsContent
 
-if mainFrame then
-	local tabBar = mainFrame:FindFirstChild("TabBar")
-	if tabBar then
-		stuffTab = tabBar:FindFirstChild("StuffTab")
-		stocksTab = tabBar:FindFirstChild("StocksTab")
-	end
-	stuffContent = mainFrame:FindFirstChild("StuffContent")
-	stocksContent = mainFrame:FindFirstChild("StocksContent")
-	if stuffContent then
-		currencyLabel = stuffContent:FindFirstChild("CurrencyLabel")
-	end
-end
+-- Profile Elements
+local currencyLabel
 
-local ACTIVE_TAB_COLOR = Color3.fromRGB(64, 64, 64)
-local INACTIVE_TAB_COLOR = Color3.fromRGB(46, 46, 46)
-local ACTIVE_TEXT_COLOR = Color3.fromRGB(255, 255, 255)
-local INACTIVE_TEXT_COLOR = Color3.fromRGB(179, 179, 179)
-
+-- Function Declarations
 local function switchTab(tab)
-	if not stuffTab or not stocksTab or not stuffContent or not stocksContent then
+	if not profileTab or not stocksTab or not profileContent or not stocksContent then
 		return
 	end
 
-	if tab == "Stuff" then
-		stuffContent.Visible = true
+	if tab == "Profile" then
+		profileContent.Visible = true
 		stocksContent.Visible = false
-		stuffTab.BackgroundColor3 = ACTIVE_TAB_COLOR
-		stuffTab.TextColor3 = ACTIVE_TEXT_COLOR
-		stocksTab.BackgroundColor3 = INACTIVE_TAB_COLOR
-		stocksTab.TextColor3 = INACTIVE_TEXT_COLOR
+		transactionsContent.Visible = false
 	elseif tab == "Stocks" then
-		stuffContent.Visible = false
+		profileContent.Visible = false
 		stocksContent.Visible = true
-		stuffTab.BackgroundColor3 = INACTIVE_TAB_COLOR
-		stuffTab.TextColor3 = INACTIVE_TEXT_COLOR
-		stocksTab.BackgroundColor3 = ACTIVE_TAB_COLOR
-		stocksTab.TextColor3 = ACTIVE_TEXT_COLOR
+		transactionsContent.Visible = false
+	elseif tab == "Transactions" then
+		profileContent.Visible = false
+		stocksContent.Visible = false
+		transactionsContent.Visible = true
 	end
-end
-
-if stuffTab then
-	stuffTab.MouseButton1Click:Connect(function()
-		switchTab("Stuff")
-	end)
-end
-
-if stocksTab then
-	stocksTab.MouseButton1Click:Connect(function()
-		switchTab("Stocks")
-	end)
 end
 
 local function updateCurrency()
@@ -82,26 +59,83 @@ local function updateCurrency()
 	end
 end
 
-if closeButton then
-	closeButton.MouseButton1Click:Connect(function()
-		stockUI.Enabled = false
-		local explodeEvent = ReplicatedStorage:WaitForChild("ExplodePlayer")
-		explodeEvent:FireServer()
-	end)
-else
-	warn("CloseButton not found in StockUI")
+local function initializeUIElements()
+	closeButton = stockUI:FindFirstChild("CloseButton", true)
+	mainFrame = stockUI:FindFirstChild("MainFrame")
+
+	if mainFrame then
+		local tabBar = mainFrame:FindFirstChild("TabBar")
+
+		if tabBar then
+			profileTab = tabBar:FindFirstChild("ProfileTab")
+			stocksTab = tabBar:FindFirstChild("StocksTab")
+			transactionsTab = tabBar:FindFirstChild("TransactionsTab")
+		end
+
+		profileContent = mainFrame:FindFirstChild("ProfileContent")
+		stocksContent = mainFrame:FindFirstChild("StocksContent")
+		transactionsContent = mainFrame:FindFirstChild("TransactionsContent")
+
+		if profileContent then
+			currencyLabel = profileContent:FindFirstChild("CurrencyLabel")
+		end
+	end
 end
 
-local openEvent = ReplicatedStorage:WaitForChild("OpenStockUI")
-openEvent.OnClientEvent:Connect(function()
-	print("Opening StockUI")
-	stockUI.Enabled = true
-
-	if stuffTab and stocksTab then
-		switchTab("Stuff")
+local function setupTabButtons()
+	if profileTab then
+		profileTab.MouseButton1Click:Connect(function()
+			switchTab("Profile")
+		end)
 	end
 
-	if currencyLabel then
-		updateCurrency()
+	if stocksTab then
+		stocksTab.MouseButton1Click:Connect(function()
+			switchTab("Stocks")
+		end)
 	end
-end)
+
+	if transactionsTab then
+		transactionsTab.MouseButton1Click:Connect(function()
+			switchTab("Transactions")
+		end)
+	end
+end
+
+local function setupCloseButton()
+	if closeButton then
+		closeButton.MouseButton1Click:Connect(function()
+			stockUI.Enabled = false
+			local explodeEvent = ReplicatedStorage:WaitForChild("ExplodePlayer")
+			explodeEvent:FireServer()
+		end)
+	else
+		warn("CloseButton not found in StockUI")
+	end
+end
+
+local function setupOpenEvent()
+	local openEvent = ReplicatedStorage:WaitForChild("OpenStockUI")
+	openEvent.OnClientEvent:Connect(function()
+		print("Opening StockUI")
+		stockUI.Enabled = true
+
+		if profileTab and stocksTab then
+			switchTab("Profile")
+		end
+
+		if currencyLabel then
+			updateCurrency()
+		end
+	end)
+end
+
+-- If __name__ == "__main__":
+local function main()
+	initializeUIElements()
+	setupTabButtons()
+	setupCloseButton()
+	setupOpenEvent()
+end
+
+main()
