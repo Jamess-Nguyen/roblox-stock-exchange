@@ -8,7 +8,9 @@
       "Bash(rojo --version:*)",
       "Bash(stylua:*)",
       "Bash(rojo serve:*)",
-      "Bash(source ~/.bashrc)"
+      "Bash(source ~/.bashrc)",
+      "Bash(\"/c/bin/Microsoft VS Code/code\" --version)",
+      "Bash(env)"
     ],
     "deny": [],
     "ask": []
