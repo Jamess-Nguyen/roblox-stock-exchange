@@ -6,5 +6,9 @@ GetCurrency.Name = "GetCurrency"
 GetCurrency.Parent = ReplicatedStorage
 
 GetCurrency.OnServerInvoke = function(player)
-	return CurrencyManager:GetCurrency(player)
+	local currency = CurrencyManager:GetCurrency(player)
+	print("GetCurrency called for", player.Name, "- Returning:", currency)
+	return currency
 end
+
+print("CurrencyRemotes initialized")

@@ -64,15 +64,18 @@ end
 
 local function updateCurrency()
 	if not currencyLabel then
+		warn("CurrencyLabel not found - cannot update currency")
 		return
 	end
 
+	print("Attempting to get currency...")
 	local getCurrencyFunc = ReplicatedStorage:WaitForChild("GetCurrency")
 	local success, currency = pcall(function()
 		return getCurrencyFunc:InvokeServer()
 	end)
 
 	if success then
+		print("Got currency:", currency)
 		currencyLabel.Text = string.format("Cash (USD): $%s", tostring(currency))
 	else
 		warn("Failed to get currency:", currency)
