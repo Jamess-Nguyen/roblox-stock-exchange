@@ -3,6 +3,7 @@ local Players = game:GetService("Players")
 
 -- Modules
 local CurrencyManager = require(script.Parent.CurrencyManager)
+local PortfolioManager = require(script.Parent.PortfolioManager)
 
 -- Constants
 local AUTO_SAVE_INTERVAL = 300
@@ -11,16 +12,20 @@ local AUTO_SAVE_INTERVAL = 300
 
 local function onPlayerAdded(player)
 	CurrencyManager:LoadPlayerCurrency(player)
+	PortfolioManager:LoadPlayerPortfolio(player)
 end
 
 local function onPlayerRemoving(player)
 	CurrencyManager:SavePlayerCurrency(player)
+	PortfolioManager:SavePlayerPortfolio(player)
 	CurrencyManager.PlayerCurrency[player.UserId] = nil
+	PortfolioManager.PlayerPortfolio[player.UserId] = nil
 end
 
 local function loadExistingPlayers()
 	for _, player in Players:GetPlayers() do
 		CurrencyManager:LoadPlayerCurrency(player)
+		PortfolioManager:LoadPlayerPortfolio(player)
 	end
 end
 
@@ -30,8 +35,9 @@ local function startAutoSave()
 			task.wait(AUTO_SAVE_INTERVAL)
 			for _, player in Players:GetPlayers() do
 				CurrencyManager:SavePlayerCurrency(player)
+				PortfolioManager:SavePlayerPortfolio(player)
 			end
-			print("Auto-saved all player currency")
+			print("Auto-saved all player data")
 		end
 	end)
 end
@@ -40,8 +46,9 @@ local function setupShutdownSave()
 	game:BindToClose(function()
 		for _, player in Players:GetPlayers() do
 			CurrencyManager:SavePlayerCurrency(player)
+			PortfolioManager:SavePlayerPortfolio(player)
 		end
-		print("Saved all player currency on shutdown")
+		print("Saved all player data on shutdown")
 	end)
 end
 
@@ -57,7 +64,7 @@ local function main()
 	loadExistingPlayers()
 	startAutoSave()
 	setupShutdownSave()
-	print("CurrencyManager initialized")
+	print("PlayerDataLoader initialized")
 end
 
 main()
