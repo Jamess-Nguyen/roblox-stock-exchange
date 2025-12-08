@@ -23,16 +23,11 @@ local portfolioValueLabel
 local portfolioLabel
 
 -- Transactions Elements
-local stockRows = {} -- Will store {symbol = {row, nameLabel, priceLabel, quantityBox, buyBtn, sellBtn}}
+local stockRows = {}
 local statusLabel
-local buyAllButton
-local sellAllButton
-local stockListFrame -- Container for dynamically generated rows
-local stockRowTemplate -- Template to clone for each stock
+local stockListFrame 
+local stockRowTemplate 
 
--- Function Declarations (Forward declarations for functions used in closures)
-local onBuyAll
-local onSellAll
 
 local function switchTab(tab)
 	if not profileTab or not stocksTab or not profileContent or not stocksContent then
@@ -97,11 +92,6 @@ end
 local function displayMessage(message, isSuccess)
 	if statusLabel then
 		statusLabel.Text = message
-		if isSuccess then
-			statusLabel.TextColor3 = Color3.new(0, 1, 0) -- Green for success
-		else
-			statusLabel.TextColor3 = Color3.new(1, 0, 0) -- Red for errors
-		end
 	end
 end
 
@@ -293,8 +283,7 @@ onBuyStock = function(symbol, quantityBox)
 	if success and result then
 		displayMessage(result.message, result.success)
 		if result.success then
-			quantityBox.Text = "" -- Clear input on success
-			-- Refresh displays
+			quantityBox.Text = "" 
 			if currencyLabel then
 				updateCurrency()
 			end
@@ -326,8 +315,7 @@ onSellStock = function(symbol, quantityBox)
 	if success and result then
 		displayMessage(result.message, result.success)
 		if result.success then
-			quantityBox.Text = "" -- Clear input on success
-			-- Refresh displays
+			quantityBox.Text = ""
 			if currencyLabel then
 				updateCurrency()
 			end
@@ -364,15 +352,12 @@ local function initializeUIElements()
 		end
 
 		if stocksContent then
-			-- Find portfolio label for JSON display
 			portfolioLabel = stocksContent:FindFirstChild("PortfolioLabel")
 		end
 
 		if transactionsContent then
-			-- Find status label
 			statusLabel = transactionsContent:FindFirstChild("StatusLabel")
 
-			-- Find stock list container and template
 			stockListFrame = transactionsContent:FindFirstChild("StockListFrame")
 			stockRowTemplate = transactionsContent:FindFirstChild("StockRowTemplate")
 
