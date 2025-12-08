@@ -25,9 +25,19 @@ local portfolioLabel
 -- Transactions Elements
 local stockRows = {}
 local statusLabel
-local stockListFrame 
-local stockRowTemplate 
+local stockListFrame
+local stockRowTemplate
+local selectedStock = nil
+local selectedAmount = 0
 
+-- Action Area Elements
+local actionArea
+local selectedStockLabel
+local amount1Btn, amount10Btn, amount50Btn, amount100Btn
+local buyButton, sellButton
+
+-- Feature flags
+local hasActionArea = false
 
 local function switchTab(tab)
 	if not profileTab or not stocksTab or not profileContent or not stocksContent then
@@ -89,7 +99,7 @@ local function updatePortfolioValue()
 	end
 end
 
-local function displayMessage(message, isSuccess)
+local function displayMessage(message)
 	if statusLabel then
 		statusLabel.Text = message
 	end
@@ -101,40 +111,26 @@ local function displayStockData()
 		return
 	end
 
-	print("Fetching portfolio and stock data for display...")
-
-	-- Get portfolio (owned stocks)
-	local getPortfolioFunc = ReplicatedStorage:WaitForChild("GetPortfolio")
-	local successPortfolio, portfolio = pcall(function()
-		return getPortfolioFunc:InvokeServer()
+	print("Fetching enriched portfolio data...")
+	local getEnrichedPortfolioFunc = ReplicatedStorage:WaitForChild("GetEnrichedPortfolio")
+	local success, enrichedPortfolio = pcall(function()
+		return getEnrichedPortfolioFunc:InvokeServer()
 	end)
 
-	-- Get stock data (for prices)
-	local getStockDataFunc = ReplicatedStorage:WaitForChild("GetStockData")
-	local successStocks, stockData = pcall(function()
-		return getStockDataFunc:InvokeServer()
-	end)
-
-	if successPortfolio and portfolio and successStocks and stockData then
-		-- Create a price lookup table
-		local stockPrices = {}
-		local stockNames = {}
-		for _, stock in ipairs(stockData) do
-			stockPrices[stock.Symbol] = stock.CurrentPrice
-			stockNames[stock.Symbol] = stock.Name
-		end
-
-		-- Format each owned stock on a new line
+	if success and enrichedPortfolio then
 		local lines = {}
-		for symbol, quantity in pairs(portfolio) do
-			local name = stockNames[symbol] or symbol
-			local price = stockPrices[symbol] or 0
+
+		for _, stock in ipairs(enrichedPortfolio) do
+			local plColor = stock.isProfit and "+" or "-"
 			local line = string.format(
-				'{"Symbol": "%s", "Name": "%s", "Quantity": %d, "Price": %.2f}',
-				symbol,
-				name,
-				quantity,
-				price
+				"%s: %d shares | Price: $%.2f | Value: $%.2f | Avg Cost: $%.2f | P/L: %s$%.2f",
+				stock.symbol,
+				stock.quantity,
+				stock.currentPrice,
+				stock.totalValue,
+				stock.averageCost,
+				plColor,
+				math.abs(stock.unrealizedPL)
 			)
 			table.insert(lines, line)
 		end
@@ -144,111 +140,135 @@ local function displayStockData()
 		else
 			portfolioLabel.Text = table.concat(lines, "\n")
 		end
-		print("Portfolio displayed with owned stocks")
+		print("Portfolio displayed with enriched data")
 	else
-		warn("Failed to get portfolio or stock data")
+		warn("Failed to get enriched portfolio")
 		portfolioLabel.Text = "Failed to load portfolio"
 	end
 end
 
-local function createStockRow(stock, index)
-	if not stockRowTemplate or not stockListFrame then
-		warn("Template or container not found")
+local function updateActionAreaState()
+	if not hasActionArea then
 		return
 	end
 
-	print(string.format("Creating row for %s (index %d)", stock.Symbol, index))
+	if buyButton and sellButton then
+		local hasSelection = selectedStock ~= nil
+		local hasAmount = selectedAmount > 0
 
-	-- Clone the template
-	local row = stockRowTemplate:Clone()
-	row.Name = stock.Symbol .. "Row"
-	row.Visible = true
-	row.LayoutOrder = index
-	row.Parent = stockListFrame
+		buyButton.Active = hasSelection and hasAmount
+		sellButton.Active = hasSelection and hasAmount
 
-	print(string.format("  - Row created: %s, Visible: %s, Parent: %s", row.Name, tostring(row.Visible), row.Parent.Name))
+		local enabledColor = Color3.new(0, 0.8, 0)
+		local disabledColor = Color3.new(0.5, 0.5, 0.5)
 
-	-- Get UI elements
-	local symbolLabel = row:FindFirstChild("SymbolLabel")
-	local nameLabel = row:FindFirstChild("NameLabel")
-	local priceLabel = row:FindFirstChild("PriceLabel")
-	local quantityBox = row:FindFirstChild("QuantityBox")
-	local buyBtn = row:FindFirstChild("BuyButton")
-	local sellBtn = row:FindFirstChild("SellButton")
-
-	print(string.format("  - Found children: Symbol=%s, Name=%s, Price=%s, Qty=%s, Buy=%s, Sell=%s",
-		tostring(symbolLabel ~= nil),
-		tostring(nameLabel ~= nil),
-		tostring(priceLabel ~= nil),
-		tostring(quantityBox ~= nil),
-		tostring(buyBtn ~= nil),
-		tostring(sellBtn ~= nil)))
-
-	-- Set values
-	if symbolLabel then
-		symbolLabel.Text = stock.Symbol
+		buyButton.BackgroundColor3 = (hasSelection and hasAmount) and enabledColor or disabledColor
+		sellButton.BackgroundColor3 = (hasSelection and hasAmount) and enabledColor or disabledColor
 	end
-	if nameLabel then
-		nameLabel.Text = stock.Name
-	end
-	if priceLabel then
-		priceLabel.Text = string.format("$%.2f", stock.CurrentPrice)
-	end
-	if quantityBox then
-		quantityBox.Text = "0"
-	end
-
-	-- Store references
-	stockRows[stock.Symbol] = {
-		row = row,
-		symbolLabel = symbolLabel,
-		nameLabel = nameLabel,
-		priceLabel = priceLabel,
-		quantityBox = quantityBox,
-		buyBtn = buyBtn,
-		sellBtn = sellBtn
-	}
-
-	-- Connect buy/sell buttons
-	if buyBtn and quantityBox then
-		buyBtn.MouseButton1Click:Connect(function()
-			onBuyStock(stock.Symbol, quantityBox)
-		end)
-	end
-
-	if sellBtn and quantityBox then
-		sellBtn.MouseButton1Click:Connect(function()
-			onSellStock(stock.Symbol, quantityBox)
-		end)
-	end
-
-	print(string.format("  - Row complete for %s", stock.Symbol))
 end
 
-local function displayTransactionInterface()
-	print("Fetching stock data for trading...")
-	local getStockDataFunc = ReplicatedStorage:WaitForChild("GetStockData")
-	local success, stockData = pcall(function()
-		return getStockDataFunc:InvokeServer()
+local function selectStock(stock, row)
+	if selectedStock and selectedStock.row then
+		selectedStock.row.BackgroundColor3 = Color3.new(1, 1, 1)
+	end
+
+	selectedStock = {
+		symbol = stock.Symbol,
+		name = stock.Name,
+		price = stock.CurrentPrice,
+		row = row
+	}
+	row.BackgroundColor3 = Color3.new(0.8, 0.9, 1)
+
+	if selectedStockLabel then
+		selectedStockLabel.Text = string.format("Selected: %s - %s", stock.Symbol, stock.Name)
+	end
+
+	selectedAmount = 0
+	updateActionAreaState()
+end
+
+local function setAmount(amount)
+	selectedAmount = amount
+	updateActionAreaState()
+end
+
+local function onBuyStock(symbol, quantity)
+	if quantity <= 0 then
+		displayMessage("Please select an amount")
+		return
+	end
+
+	print(string.format("Attempting to buy %d %s...", quantity, symbol))
+	local buyStockFunc = ReplicatedStorage:WaitForChild("BuyStock")
+	local success, result = pcall(function()
+		return buyStockFunc:InvokeServer(symbol, quantity)
 	end)
 
-	if success and stockData then
-		-- Clear existing rows
-		for symbol, elements in pairs(stockRows) do
-			if elements.row then
-				elements.row:Destroy()
+	if success and result then
+		displayMessage(result.message)
+		if result.success then
+			selectedAmount = 0
+			updateActionAreaState()
+			if currencyLabel then
+				updateCurrency()
+			end
+			if portfolioValueLabel then
+				updatePortfolioValue()
 			end
 		end
-		stockRows = {}
-
-		-- Create rows for each stock
-		for index, stock in ipairs(stockData) do
-			createStockRow(stock, index)
-		end
-		print("Trading interface displayed with", #stockData, "stocks")
 	else
-		warn("Failed to get stock data")
+		displayMessage("Transaction failed")
+		warn("Buy stock error:", result)
 	end
+end
+
+local function onSellStock(symbol, quantity)
+	if quantity <= 0 then
+		displayMessage("Please select an amount")
+		return
+	end
+
+	print(string.format("Attempting to sell %d %s...", quantity, symbol))
+	local sellStockFunc = ReplicatedStorage:WaitForChild("SellStock")
+	local success, result = pcall(function()
+		return sellStockFunc:InvokeServer(symbol, quantity)
+	end)
+
+	if success and result then
+		displayMessage(result.message)
+		if result.success then
+			selectedAmount = 0
+			updateActionAreaState()
+			if currencyLabel then
+				updateCurrency()
+			end
+			if portfolioValueLabel then
+				updatePortfolioValue()
+			end
+		end
+	else
+		displayMessage("Transaction failed")
+		warn("Sell stock error:", result)
+	end
+end
+
+local function executeBuy()
+	if not selectedStock or selectedAmount <= 0 then
+		displayMessage("Please select a stock and amount")
+		return
+	end
+
+	onBuyStock(selectedStock.symbol, selectedAmount)
+end
+
+local function executeSell()
+	if not selectedStock or selectedAmount <= 0 then
+		displayMessage("Please select a stock and amount")
+		return
+	end
+
+	onSellStock(selectedStock.symbol, selectedAmount)
 end
 
 local function validateQuantityInput(quantityText)
@@ -265,107 +285,220 @@ local function validateQuantityInput(quantityText)
 	return true, quantity, ""
 end
 
-onBuyStock = function(symbol, quantityBox)
-	local quantityText = quantityBox.Text
-	local valid, quantity, errorMsg = validateQuantityInput(quantityText)
-
-	if not valid then
-		displayMessage(errorMsg, false)
+local function createStockRowLegacy(stock, index)
+	if not stockRowTemplate or not stockListFrame then
+		warn("Template or container not found")
 		return
 	end
 
-	print(string.format("Attempting to buy %d %s...", quantity, symbol))
-	local buyStockFunc = ReplicatedStorage:WaitForChild("BuyStock")
-	local success, result = pcall(function()
-		return buyStockFunc:InvokeServer(symbol, quantity)
-	end)
+	print(string.format("Creating legacy row for %s (index %d)", stock.Symbol, index))
 
-	if success and result then
-		displayMessage(result.message, result.success)
-		if result.success then
-			quantityBox.Text = "" 
-			if currencyLabel then
-				updateCurrency()
-			end
-			if portfolioValueLabel then
-				updatePortfolioValue()
-			end
-		end
-	else
-		displayMessage("Transaction failed", false)
-		warn("Buy stock error:", result)
+	local row = stockRowTemplate:Clone()
+	row.Name = stock.Symbol .. "Row"
+	row.Visible = true
+	row.LayoutOrder = index
+	row.Parent = stockListFrame
+
+	local symbolLabel = row:FindFirstChild("SymbolLabel")
+	local nameLabel = row:FindFirstChild("NameLabel")
+	local priceLabel = row:FindFirstChild("PriceLabel")
+	local quantityBox = row:FindFirstChild("QuantityBox")
+	local buyBtn = row:FindFirstChild("BuyButton")
+	local sellBtn = row:FindFirstChild("SellButton")
+
+	if symbolLabel then
+		symbolLabel.Text = stock.Symbol
 	end
+	if nameLabel then
+		nameLabel.Text = stock.Name
+	end
+	if priceLabel then
+		priceLabel.Text = string.format("$%.2f", stock.CurrentPrice)
+	end
+	if quantityBox then
+		quantityBox.Text = "0"
+	end
+
+	stockRows[stock.Symbol] = {
+		row = row,
+		symbolLabel = symbolLabel,
+		nameLabel = nameLabel,
+		priceLabel = priceLabel,
+		quantityBox = quantityBox,
+		buyBtn = buyBtn,
+		sellBtn = sellBtn
+	}
+
+	if buyBtn and quantityBox then
+		buyBtn.MouseButton1Click:Connect(function()
+			local quantityText = quantityBox.Text
+			local valid, quantity, errorMsg = validateQuantityInput(quantityText)
+
+			if not valid then
+				displayMessage(errorMsg)
+				return
+			end
+
+			onBuyStock(stock.Symbol, quantity)
+			if quantityBox then
+				quantityBox.Text = "0"
+			end
+		end)
+	end
+
+	if sellBtn and quantityBox then
+		sellBtn.MouseButton1Click:Connect(function()
+			local quantityText = quantityBox.Text
+			local valid, quantity, errorMsg = validateQuantityInput(quantityText)
+
+			if not valid then
+				displayMessage(errorMsg)
+				return
+			end
+
+			onSellStock(stock.Symbol, quantity)
+			if quantityBox then
+				quantityBox.Text = "0"
+			end
+		end)
+	end
+
+	print(string.format("Legacy row complete for %s", stock.Symbol))
 end
 
-onSellStock = function(symbol, quantityBox)
-	local quantityText = quantityBox.Text
-	local valid, quantity, errorMsg = validateQuantityInput(quantityText)
-
-	if not valid then
-		displayMessage(errorMsg, false)
+local function createStockRowNew(stock, index)
+	if not stockRowTemplate or not stockListFrame then
+		warn("Template or container not found")
 		return
 	end
 
-	print(string.format("Attempting to sell %d %s...", quantity, symbol))
-	local sellStockFunc = ReplicatedStorage:WaitForChild("SellStock")
-	local success, result = pcall(function()
-		return sellStockFunc:InvokeServer(symbol, quantity)
+	print(string.format("Creating new row for %s (index %d)", stock.Symbol, index))
+
+	local row = stockRowTemplate:Clone()
+	row.Name = stock.Symbol .. "Row"
+	row.Visible = true
+	row.LayoutOrder = index
+	row.Parent = stockListFrame
+
+	local symbolLabel = row:FindFirstChild("SymbolLabel")
+	local nameLabel = row:FindFirstChild("NameLabel")
+	local priceLabel = row:FindFirstChild("PriceLabel")
+
+	if symbolLabel then
+		symbolLabel.Text = stock.Symbol
+	end
+	if nameLabel then
+		nameLabel.Text = stock.Name
+	end
+	if priceLabel then
+		priceLabel.Text = string.format("$%.2f", stock.CurrentPrice)
+	end
+
+	stockRows[stock.Symbol] = {
+		row = row,
+		symbolLabel = symbolLabel,
+		nameLabel = nameLabel,
+		priceLabel = priceLabel
+	}
+
+	row.MouseButton1Click:Connect(function()
+		selectStock(stock, row)
 	end)
 
-	if success and result then
-		displayMessage(result.message, result.success)
-		if result.success then
-			quantityBox.Text = ""
-			if currencyLabel then
-				updateCurrency()
-			end
-			if portfolioValueLabel then
-				updatePortfolioValue()
+	print(string.format("New row complete for %s", stock.Symbol))
+end
+
+local function displayTransactionInterface()
+	print("Fetching stock data for trading...")
+	local getStockDataFunc = ReplicatedStorage:WaitForChild("GetStockData")
+	local success, stockData = pcall(function()
+		return getStockDataFunc:InvokeServer()
+	end)
+
+	if success and stockData then
+		for symbol, elements in pairs(stockRows) do
+			if elements.row then
+				elements.row:Destroy()
 			end
 		end
+		stockRows = {}
+
+		for index, stock in ipairs(stockData) do
+			if hasActionArea then
+				createStockRowNew(stock, index)
+			else
+				createStockRowLegacy(stock, index)
+			end
+		end
+		print("Trading interface displayed with", #stockData, "stocks")
 	else
-		displayMessage("Transaction failed", false)
-		warn("Sell stock error:", result)
+		warn("Failed to get stock data")
 	end
 end
 
 local function initializeUIElements()
+	print("Initializing UI elements...")
 	closeButton = stockUI:FindFirstChild("CloseButton", true)
-	mainFrame = stockUI:FindFirstChild("MainFrame")
+	mainFrame = stockUI:FindFirstChild("MainFrame", true)
 
+	print("MainFrame found:", mainFrame ~= nil)
 	if mainFrame then
-		local tabBar = mainFrame:FindFirstChild("TabBar")
+		print("MainFrame visible:", mainFrame.Visible)
+		local tabBar = mainFrame:FindFirstChild("TabBar", true)
 
 		if tabBar then
-			profileTab = tabBar:FindFirstChild("ProfileTab")
-			stocksTab = tabBar:FindFirstChild("StocksTab")
-			transactionsTab = tabBar:FindFirstChild("TransactionsTab")
+			profileTab = tabBar:FindFirstChild("ProfileTab", true)
+			stocksTab = tabBar:FindFirstChild("StocksTab", true)
+			transactionsTab = tabBar:FindFirstChild("TransactionsTab", true)
 		end
 
-		profileContent = mainFrame:FindFirstChild("ProfileContent")
-		stocksContent = mainFrame:FindFirstChild("StocksContent")
-		transactionsContent = mainFrame:FindFirstChild("TransactionsContent")
+		profileContent = mainFrame:FindFirstChild("ProfileContent", true)
+		stocksContent = mainFrame:FindFirstChild("StocksContent", true)
+		transactionsContent = mainFrame:FindFirstChild("TransactionsContent", true)
 
 		if profileContent then
-			currencyLabel = profileContent:FindFirstChild("CurrencyLabel")
-			portfolioValueLabel = profileContent:FindFirstChild("PortfolioValueLabel")
+			currencyLabel = profileContent:FindFirstChild("CurrencyLabel", true)
+			portfolioValueLabel = profileContent:FindFirstChild("PortfolioValueLabel", true)
 		end
 
 		if stocksContent then
-			portfolioLabel = stocksContent:FindFirstChild("PortfolioLabel")
+			portfolioLabel = stocksContent:FindFirstChild("PortfolioLabel", true)
 		end
 
 		if transactionsContent then
-			statusLabel = transactionsContent:FindFirstChild("StatusLabel")
-
-			stockListFrame = transactionsContent:FindFirstChild("StockListFrame")
-			stockRowTemplate = transactionsContent:FindFirstChild("StockRowTemplate")
+			statusLabel = transactionsContent:FindFirstChild("StatusLabel", true)
+			stockListFrame = transactionsContent:FindFirstChild("StockListFrame", true)
+			stockRowTemplate = transactionsContent:FindFirstChild("StockRowTemplate", true)
+			actionArea = transactionsContent:FindFirstChild("ActionArea", true)
 
 			if not stockListFrame then
 				warn("StockListFrame not found - trading interface will not display")
 			end
 			if not stockRowTemplate then
 				warn("StockRowTemplate not found - cannot create stock rows")
+			end
+
+			if actionArea then
+				hasActionArea = true
+				print("ActionArea found - using new UI mode")
+				selectedStockLabel = actionArea:FindFirstChild("SelectedStockLabel", true)
+
+				local quickAmountFrame = actionArea:FindFirstChild("QuickAmountFrame", true)
+				if quickAmountFrame then
+					amount1Btn = quickAmountFrame:FindFirstChild("Amount1Button", true)
+					amount10Btn = quickAmountFrame:FindFirstChild("Amount10Button", true)
+					amount50Btn = quickAmountFrame:FindFirstChild("Amount50Button", true)
+					amount100Btn = quickAmountFrame:FindFirstChild("Amount100Button", true)
+				end
+
+				local tradeButtonFrame = actionArea:FindFirstChild("TradeButtonFrame", true)
+				if tradeButtonFrame then
+					buyButton = tradeButtonFrame:FindFirstChild("BuyButton", true)
+					sellButton = tradeButtonFrame:FindFirstChild("SellButton", true)
+				end
+			else
+				hasActionArea = false
+				print("ActionArea not found - using legacy UI mode")
 			end
 		end
 	end
@@ -399,6 +532,36 @@ local function setupTabButtons()
 	end
 end
 
+local function setupActionArea()
+	if not hasActionArea then
+		print("Skipping ActionArea setup - using legacy mode")
+		return
+	end
+
+	if amount1Btn then
+		amount1Btn.MouseButton1Click:Connect(function() setAmount(1) end)
+	end
+	if amount10Btn then
+		amount10Btn.MouseButton1Click:Connect(function() setAmount(10) end)
+	end
+	if amount50Btn then
+		amount50Btn.MouseButton1Click:Connect(function() setAmount(50) end)
+	end
+	if amount100Btn then
+		amount100Btn.MouseButton1Click:Connect(function() setAmount(100) end)
+	end
+
+	if buyButton then
+		buyButton.MouseButton1Click:Connect(executeBuy)
+	end
+	if sellButton then
+		sellButton.MouseButton1Click:Connect(executeSell)
+	end
+
+	updateActionAreaState()
+	print("ActionArea setup complete")
+end
+
 local function setupCloseButton()
 	if closeButton then
 		closeButton.MouseButton1Click:Connect(function()
@@ -416,6 +579,11 @@ local function setupOpenEvent()
 	openEvent.OnClientEvent:Connect(function()
 		print("Opening StockUI")
 		stockUI.Enabled = true
+
+		if mainFrame then
+			mainFrame.Visible = true
+			print("Set MainFrame visible")
+		end
 
 		if profileTab and stocksTab then
 			switchTab("Profile")
@@ -435,6 +603,7 @@ end
 local function main()
 	initializeUIElements()
 	setupTabButtons()
+	setupActionArea()
 	setupCloseButton()
 	setupOpenEvent()
 end

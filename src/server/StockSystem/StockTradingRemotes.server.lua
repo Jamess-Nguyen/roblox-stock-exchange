@@ -5,6 +5,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local StockData = require(script.Parent.StockData)
 local CurrencyManager = require(game.ServerScriptService.PlayerData.CurrencyManager)
 local PortfolioManager = require(game.ServerScriptService.PlayerData.PortfolioManager)
+local TransactionManager = require(game.ServerScriptService.PlayerData.TransactionManager)
 
 -- Remote Functions
 local BuyStock
@@ -65,6 +66,7 @@ local function onBuyStock(player, symbol, quantity)
 	-- Execute transaction
 	CurrencyManager:RemoveCurrency(player, totalCost)
 	PortfolioManager:AddShares(player, symbol, quantity)
+	TransactionManager:RecordTransaction(player, symbol, "buy", quantity, price)
 
 	print(string.format("%s bought %d %s for $%.2f", player.Name, quantity, symbol, totalCost))
 
@@ -102,6 +104,7 @@ local function onSellStock(player, symbol, quantity)
 	-- Execute transaction
 	PortfolioManager:RemoveShares(player, symbol, quantity)
 	CurrencyManager:AddCurrency(player, totalRevenue)
+	TransactionManager:RecordTransaction(player, symbol, "sell", quantity, price)
 
 	print(string.format("%s sold %d %s for $%.2f", player.Name, quantity, symbol, totalRevenue))
 

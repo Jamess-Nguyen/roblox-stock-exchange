@@ -10,7 +10,8 @@
       "Bash(rojo serve:*)",
       "Bash(source ~/.bashrc)",
       "Bash(\"/c/bin/Microsoft VS Code/code\" --version)",
-      "Bash(env)"
+      "Bash(env)",
+      "Bash(ls:*)"
     ],
     "deny": [],
     "ask": []
