@@ -1,6 +1,7 @@
 -- Services
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
+local RetroWindowsTheme = require(script.Parent.RetroWindowsTheme)
 
 -- Variables
 local player = Players.LocalPlayer
@@ -21,6 +22,9 @@ local portfolioValueLabel
 
 -- Stocks Elements
 local portfolioLabel
+local portfolioRows = {}
+local ownedStockListFrame
+local ownedStockRowTemplate
 
 -- Transactions Elements
 local stockRows = {}
@@ -38,24 +42,36 @@ local buyButton, sellButton
 
 -- Feature flags
 local hasActionArea = false
+local activeTab = "Profile"
 
 local function switchTab(tab)
 	if not profileTab or not stocksTab or not profileContent or not stocksContent then
 		return
 	end
 
+	activeTab = tab
+
 	if tab == "Profile" then
 		profileContent.Visible = true
 		stocksContent.Visible = false
 		transactionsContent.Visible = false
+		RetroWindowsTheme.ApplyToTab(profileTab, true)
+		RetroWindowsTheme.ApplyToTab(stocksTab, false)
+		RetroWindowsTheme.ApplyToTab(transactionsTab, false)
 	elseif tab == "Stocks" then
 		profileContent.Visible = false
 		stocksContent.Visible = true
 		transactionsContent.Visible = false
+		RetroWindowsTheme.ApplyToTab(profileTab, false)
+		RetroWindowsTheme.ApplyToTab(stocksTab, true)
+		RetroWindowsTheme.ApplyToTab(transactionsTab, false)
 	elseif tab == "Transactions" then
 		profileContent.Visible = false
 		stocksContent.Visible = false
 		transactionsContent.Visible = true
+		RetroWindowsTheme.ApplyToTab(profileTab, false)
+		RetroWindowsTheme.ApplyToTab(stocksTab, false)
+		RetroWindowsTheme.ApplyToTab(transactionsTab, true)
 	end
 end
 
@@ -105,12 +121,72 @@ local function displayMessage(message)
 	end
 end
 
-local function displayStockData()
-	if not portfolioLabel then
-		warn("PortfolioLabel not found - cannot display stock data")
+local function createPortfolioRow(stock, index)
+	if not ownedStockRowTemplate or not ownedStockListFrame then
+		warn("Portfolio template or container not found")
 		return
 	end
 
+	print(string.format("Creating portfolio row for %s (index %d)", stock.symbol, index))
+
+	local row = ownedStockRowTemplate:Clone()
+	row.Name = stock.symbol .. "PortfolioRow"
+	row.Visible = true
+	row.LayoutOrder = index
+	row.Parent = ownedStockListFrame
+
+	local tickerLabel = row:FindFirstChild("TickerLabel")
+	local nameLabel = row:FindFirstChild("NameLabel")
+	local priceLabel = row:FindFirstChild("PriceLabel")
+	local avgCostLabel = row:FindFirstChild("AvgCostLabel")
+	local totalValLabel = row:FindFirstChild("TotalValLabel")
+	local plLabel = row:FindFirstChild("PLLabel")
+	local ownedLabel = row:FindFirstChild("OwnedLabel")
+
+	if tickerLabel then
+		tickerLabel.Text = stock.symbol
+	end
+	if nameLabel then
+		nameLabel.Text = stock.name or stock.symbol
+	end
+	if ownedLabel then
+		ownedLabel.Text = tostring(stock.quantity)
+	end
+	if priceLabel then
+		priceLabel.Text = string.format("$%.2f", stock.currentPrice)
+	end
+	if avgCostLabel then
+		avgCostLabel.Text = string.format("$%.2f", stock.averageCost)
+	end
+	if totalValLabel then
+		totalValLabel.Text = string.format("$%.2f", stock.totalValue)
+	end
+	if plLabel then
+		local plColor = stock.isProfit and "+" or "-"
+		plLabel.Text = string.format("%s$%.2f", plColor, math.abs(stock.unrealizedPL))
+		-- Color the P/L label based on profit/loss
+		if stock.isProfit then
+			plLabel.TextColor3 = Color3.new(0, 0.8, 0)  -- Green for profit
+		else
+			plLabel.TextColor3 = Color3.new(0.8, 0, 0)  -- Red for loss
+		end
+	end
+
+	portfolioRows[stock.symbol] = {
+		row = row,
+		tickerLabel = tickerLabel,
+		nameLabel = nameLabel,
+		ownedLabel = ownedLabel,
+		priceLabel = priceLabel,
+		avgCostLabel = avgCostLabel,
+		totalValLabel = totalValLabel,
+		plLabel = plLabel
+	}
+
+	print(string.format("Portfolio row complete for %s", stock.symbol))
+end
+
+local function displayStockData()
 	print("Fetching enriched portfolio data...")
 	local getEnrichedPortfolioFunc = ReplicatedStorage:WaitForChild("GetEnrichedPortfolio")
 	local success, enrichedPortfolio = pcall(function()
@@ -118,32 +194,53 @@ local function displayStockData()
 	end)
 
 	if success and enrichedPortfolio then
-		local lines = {}
+		-- Use scroll frame if available, otherwise fall back to label
+		if ownedStockListFrame and ownedStockRowTemplate then
+			-- Clear existing rows
+			for symbol, elements in pairs(portfolioRows) do
+				if elements.row then
+					elements.row:Destroy()
+				end
+			end
+			portfolioRows = {}
 
-		for _, stock in ipairs(enrichedPortfolio) do
-			local plColor = stock.isProfit and "+" or "-"
-			local line = string.format(
-				"%s: %d shares | Price: $%.2f | Value: $%.2f | Avg Cost: $%.2f | P/L: %s$%.2f",
-				stock.symbol,
-				stock.quantity,
-				stock.currentPrice,
-				stock.totalValue,
-				stock.averageCost,
-				plColor,
-				math.abs(stock.unrealizedPL)
-			)
-			table.insert(lines, line)
-		end
+			-- Create new rows
+			for index, stock in ipairs(enrichedPortfolio) do
+				createPortfolioRow(stock, index)
+			end
 
-		if #lines == 0 then
-			portfolioLabel.Text = "No stocks owned"
-		else
-			portfolioLabel.Text = table.concat(lines, "\n")
+			print("Portfolio displayed with", #enrichedPortfolio, "stocks in scroll frame")
+		elseif portfolioLabel then
+			-- Fallback to old text label display
+			local lines = {}
+
+			for _, stock in ipairs(enrichedPortfolio) do
+				local plColor = stock.isProfit and "+" or "-"
+				local line = string.format(
+					"%s: %d shares | Price: $%.2f | Value: $%.2f | Avg Cost: $%.2f | P/L: %s$%.2f",
+					stock.symbol,
+					stock.quantity,
+					stock.currentPrice,
+					stock.totalValue,
+					stock.averageCost,
+					plColor,
+					math.abs(stock.unrealizedPL)
+				)
+				table.insert(lines, line)
+			end
+
+			if #lines == 0 then
+				portfolioLabel.Text = "No stocks owned"
+			else
+				portfolioLabel.Text = table.concat(lines, "\n")
+			end
+			print("Portfolio displayed with enriched data in label")
 		end
-		print("Portfolio displayed with enriched data")
 	else
 		warn("Failed to get enriched portfolio")
-		portfolioLabel.Text = "Failed to load portfolio"
+		if portfolioLabel then
+			portfolioLabel.Text = "Failed to load portfolio"
+		end
 	end
 end
 
@@ -164,12 +261,16 @@ local function updateActionAreaState()
 
 		buyButton.BackgroundColor3 = (hasSelection and hasAmount) and enabledColor or disabledColor
 		sellButton.BackgroundColor3 = (hasSelection and hasAmount) and enabledColor or disabledColor
+
+		RetroWindowsTheme.ApplyToButton(buyButton, hasSelection and hasAmount)
+		RetroWindowsTheme.ApplyToButton(sellButton, hasSelection and hasAmount)
 	end
 end
 
 local function selectStock(stock, row)
 	if selectedStock and selectedStock.row then
 		selectedStock.row.BackgroundColor3 = Color3.new(1, 1, 1)
+		RetroWindowsTheme.ApplyToStockRow(selectedStock.row, false)
 	end
 
 	selectedStock = {
@@ -179,6 +280,7 @@ local function selectStock(stock, row)
 		row = row
 	}
 	row.BackgroundColor3 = Color3.new(0.8, 0.9, 1)
+	RetroWindowsTheme.ApplyToStockRow(row, true)
 
 	if selectedStockLabel then
 		selectedStockLabel.Text = string.format("Selected: %s - %s", stock.Symbol, stock.Name)
@@ -463,6 +565,15 @@ local function initializeUIElements()
 
 		if stocksContent then
 			portfolioLabel = stocksContent:FindFirstChild("PortfolioLabel", true)
+			ownedStockListFrame = stocksContent:FindFirstChild("OwnedStockListFrame", true)
+			ownedStockRowTemplate = stocksContent:FindFirstChild("OwnedStockRowTemplate", true)
+
+			if not ownedStockListFrame then
+				warn("OwnedStockListFrame not found - portfolio scroll view will not display")
+			end
+			if not ownedStockRowTemplate then
+				warn("OwnedStockRowTemplate not found - cannot create portfolio rows")
+			end
 		end
 
 		if transactionsContent then
@@ -502,6 +613,27 @@ local function initializeUIElements()
 			end
 		end
 	end
+end
+
+local function applyRetroTheme()
+	print("Applying Retro Windows theme...")
+
+	-- Apply to main window
+	if mainFrame then
+		RetroWindowsTheme.ApplyToWindow(mainFrame)
+	end
+
+	-- Apply to close button
+	if closeButton then
+		RetroWindowsTheme.ApplyToCloseButton(closeButton)
+	end
+
+	-- Apply to all content areas, buttons, and labels
+	if mainFrame then
+		RetroWindowsTheme.ApplyToAll(mainFrame)
+	end
+
+	print("Retro Windows theme applied")
 end
 
 local function setupTabButtons()
@@ -602,6 +734,7 @@ end
 -- If __name__ == "__main__":
 local function main()
 	initializeUIElements()
+	applyRetroTheme()
 	setupTabButtons()
 	setupActionArea()
 	setupCloseButton()

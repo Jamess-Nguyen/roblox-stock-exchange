@@ -11,7 +11,8 @@
       "Bash(source ~/.bashrc)",
       "Bash(\"/c/bin/Microsoft VS Code/code\" --version)",
       "Bash(env)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(cp:*)"
     ],
     "deny": [],
     "ask": []
