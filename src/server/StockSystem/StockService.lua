@@ -1,5 +1,5 @@
 -- Modules
-local stockData = require(91072619691201)
+local StockDataLoader = require(script.Parent.StockDataLoader)
 
 -- Module
 local StockService = {}
@@ -7,7 +7,7 @@ local StockService = {}
 -- Public Functions
 
 function StockService:GetAllStocks()
-	return stockData
+	return StockDataLoader:GetStockData()
 end
 
 return StockService

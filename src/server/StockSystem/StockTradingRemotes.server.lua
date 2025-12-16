@@ -2,7 +2,8 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 -- Modules
-local StockData = require(91072619691201)
+local StockDataLoader = require(script.Parent.StockDataLoader)
+local StockData = StockDataLoader:GetStockData()
 local CurrencyManager = require(game.ServerScriptService.PlayerData.CurrencyManager)
 local PortfolioManager = require(game.ServerScriptService.PlayerData.PortfolioManager)
 local TransactionManager = require(game.ServerScriptService.PlayerData.TransactionManager)
@@ -115,7 +116,7 @@ local function onSellStock(player, symbol, quantity)
 end
 
 local function onGetStockData(player)
-	return StockData
+	return StockDataLoader:GetStockData()
 end
 
 local function setupBuyStockFunction()
