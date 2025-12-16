@@ -209,6 +209,26 @@ local function displayStockData()
 				createPortfolioRow(stock, index)
 			end
 
+			-- Update ScrollingFrame CanvasSize to fit all rows
+			-- COMMENTED OUT: Using AutomaticCanvasSize instead
+			--[[
+			if ownedStockListFrame:IsA("ScrollingFrame") then
+				local listLayout = ownedStockListFrame:FindFirstChildOfClass("UIListLayout")
+				if listLayout then
+					-- Wait for layout to calculate, then set CanvasSize
+					task.wait()
+					ownedStockListFrame.CanvasSize = UDim2.new(0, 0, 0, listLayout.AbsoluteContentSize.Y)
+
+					-- Keep it updated if content changes
+					if not listLayout:GetPropertyChangedSignal("AbsoluteContentSize"):IsConnected() then
+						listLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+							ownedStockListFrame.CanvasSize = UDim2.new(0, 0, 0, listLayout.AbsoluteContentSize.Y)
+						end)
+					end
+				end
+			end
+			--]]
+
 			print("Portfolio displayed with", #enrichedPortfolio, "stocks in scroll frame")
 		elseif portfolioLabel then
 			-- Fallback to old text label display
@@ -399,6 +419,7 @@ local function createStockRowLegacy(stock, index)
 	row.Name = stock.Symbol .. "Row"
 	row.Visible = true
 	row.LayoutOrder = index
+	row.Active = false  -- Don't block scrolling
 	row.Parent = stockListFrame
 
 	local symbolLabel = row:FindFirstChild("SymbolLabel")
@@ -419,6 +440,13 @@ local function createStockRowLegacy(stock, index)
 	end
 	if quantityBox then
 		quantityBox.Text = "0"
+		quantityBox.Active = false  -- Don't block scrolling
+	end
+	if buyBtn then
+		buyBtn.Active = false  -- Don't block scrolling
+	end
+	if sellBtn then
+		sellBtn.Active = false  -- Don't block scrolling
 	end
 
 	stockRows[stock.Symbol] = {
@@ -480,6 +508,7 @@ local function createStockRowNew(stock, index)
 	row.Name = stock.Symbol .. "Row"
 	row.Visible = true
 	row.LayoutOrder = index
+	row.Active = false  -- Don't block scrolling
 	row.Parent = stockListFrame
 
 	local symbolLabel = row:FindFirstChild("SymbolLabel")
@@ -512,6 +541,37 @@ end
 
 local function displayTransactionInterface()
 	print("Fetching stock data for trading...")
+
+	-- AGGRESSIVELY configure ScrollingFrame for scrolling
+	if stockListFrame then
+		-- FIX THE SIZE - make it fill the parent, not the content!
+		stockListFrame.Size = UDim2.new(1, 0, 1, 0)  -- 100% of parent width and height
+
+		stockListFrame.Active = true
+		stockListFrame.ScrollingEnabled = true
+		stockListFrame.AutomaticCanvasSize = Enum.AutomaticSize.None
+		stockListFrame.ScrollBarThickness = 12
+		stockListFrame.CanvasSize = UDim2.new(0, 0, 0, 0)  -- Reset first
+		stockListFrame.ScrollingDirection = Enum.ScrollingDirection.Y
+		stockListFrame.VerticalScrollBarInset = Enum.ScrollBarInset.ScrollBar
+		stockListFrame.ElasticBehavior = Enum.ElasticBehavior.WhenScrollable
+		stockListFrame.ScrollBarImageTransparency = 0  -- Make scrollbar visible
+		stockListFrame.ZIndex = 2  -- Ensure it's on top
+
+		-- Disable all child elements from blocking scroll
+		for _, child in ipairs(stockListFrame:GetChildren()) do
+			if child:IsA("GuiObject") and child.Name ~= "UIListLayout" then
+				child.Active = false
+				-- Recursively disable all descendants
+				for _, descendant in ipairs(child:GetDescendants()) do
+					if descendant:IsA("GuiObject") then
+						descendant.Active = false
+					end
+				end
+			end
+		end
+	end
+
 	local getStockDataFunc = ReplicatedStorage:WaitForChild("GetStockData")
 	local success, stockData = pcall(function()
 		return getStockDataFunc:InvokeServer()
@@ -532,6 +592,21 @@ local function displayTransactionInterface()
 				createStockRowLegacy(stock, index)
 			end
 		end
+
+		-- FORCE MASSIVE CanvasSize to ensure scrollability
+		if stockListFrame and stockListFrame:IsA("ScrollingFrame") then
+			-- Just set it to a huge size to guarantee scrolling works
+			stockListFrame.CanvasSize = UDim2.new(0, 0, 0, 100000)
+			print("Canvas size HARDCODED to: 100000px")
+			print(string.format("StockListFrame AbsoluteSize: %d x %d", stockListFrame.AbsoluteSize.X, stockListFrame.AbsoluteSize.Y))
+			print(string.format("StockListFrame Size: %s", tostring(stockListFrame.Size)))
+
+			local parent = stockListFrame.Parent
+			if parent then
+				print(string.format("Parent (%s) AbsoluteSize: %d x %d", parent.Name, parent.AbsoluteSize.X, parent.AbsoluteSize.Y))
+			end
+		end
+
 		print("Trading interface displayed with", #stockData, "stocks")
 	else
 		warn("Failed to get stock data")
