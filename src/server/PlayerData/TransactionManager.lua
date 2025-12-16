@@ -135,7 +135,7 @@ end
 
 function TransactionManager:MigrateExistingPortfolio(player)
 	local PortfolioManager = require(script.Parent.PortfolioManager)
-	local StockData = require(script.Parent.Parent.StockSystem.StockData)
+	local StockData = require(91072619691201)
 
 	local portfolio = PortfolioManager:GetPortfolio(player)
 	local currentTime = os.time()

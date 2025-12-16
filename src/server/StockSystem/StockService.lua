@@ -1,5 +1,5 @@
 -- Modules
-local stockData = require(script.Parent.StockData)
+local stockData = require(91072619691201)
 
 -- Module
 local StockService = {}

@@ -2,7 +2,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 -- Modules
-local StockData = require(script.Parent.StockData)
+local StockData = require(91072619691201)
 local CurrencyManager = require(game.ServerScriptService.PlayerData.CurrencyManager)
 local PortfolioManager = require(game.ServerScriptService.PlayerData.PortfolioManager)
 local TransactionManager = require(game.ServerScriptService.PlayerData.TransactionManager)

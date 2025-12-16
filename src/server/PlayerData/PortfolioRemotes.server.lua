@@ -4,7 +4,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 -- Modules
 local PortfolioManager = require(script.Parent.PortfolioManager)
 local TransactionManager = require(script.Parent.TransactionManager)
-local StockData = require(game.ServerScriptService.StockSystem.StockData)
+local StockData = require(91072619691201)
 
 -- Remote Functions
 local GetPortfolio
