@@ -8,13 +8,6 @@ local PortfolioDataStore = DataStoreService:GetDataStore("PlayerPortfolio")
 local PortfolioManager = {}
 PortfolioManager.PlayerPortfolio = {}
 
--- Constants
-local DEFAULT_PORTFOLIO = {
-	["RBLX"] = 100,
-	["AAPL"] = 50,
-	["MSFT"] = 1
-}
-
 -- Public Functions
 
 function PortfolioManager:GetPortfolio(player)
@@ -81,13 +74,9 @@ function PortfolioManager:LoadPlayerPortfolio(player)
 		self.PlayerPortfolio[userId] = portfolio
 		print("Loaded portfolio for", player.Name)
 	else
-		-- Create deep copy of default portfolio for new players
-		local newPortfolio = {}
-		for symbol, quantity in pairs(DEFAULT_PORTFOLIO) do
-			newPortfolio[symbol] = quantity
-		end
-		self.PlayerPortfolio[userId] = newPortfolio
-		print("New player", player.Name, "starting with default portfolio:", newPortfolio)
+		-- New players start with empty portfolio
+		self.PlayerPortfolio[userId] = {}
+		print("New player", player.Name, "starting with empty portfolio")
 	end
 end
 
